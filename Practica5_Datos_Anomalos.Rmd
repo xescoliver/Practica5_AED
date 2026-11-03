@@ -201,18 +201,67 @@ Escribe una función que detecte los outliers de un vector $x$ para cada uno de 
 
 - **Percentiles** `reglapercentil(x)`: Cualquier valor que esté fuera del rango del percentil 5% y 95% se puede considerar como atípico. Usa la función `quantile` para calcular los percentiles.
 
+Creo las funciones pedidas. Creo que la mejor opción es devolver un vector de bools que nos indican que elemetos cumplen y cuales no la característica, es decir, devuelve True si es un outlier. Creo que con esta salida será mas facil usar estas funciones.
+
+Las defino de la siguiente manera:
+
+Regla de las 3 sigmas: utilizamos la media y la desviación típica, estableciendo los límites en media ± 3 desviaciones típicas.
+
+Identificador de Hampel: aplicamos el mismo procedimiento, pero utilizando la mediana y el MADM en lugar de la media y la desviación típica.
+
+Regla del boxplot: utilizamos los cuartiles del 25 % y 75 %, estableciendo los límites mediante 1,5 veces el rango intercuartílico.
+
+Regla de los percentiles: utilizamos los percentiles 5 % y 95 % como límites para identificar los valores atípicos
+
 ```{r , include = FALSE}
 # Regla 3 sigma
+reglasigma <- function(x){
+  dt <- sd(x, na.rm=TRUE)
+  media = mean(x, na.rm=TRUE)
+  
+  upLim<-media+3*dt
+  lowLim<-media-3*dt
+  
+  return(x> upLim | x < lowLim)
+}
 
 
 # Identificador Hampel
-
+reglahampel <- function(x){
+  
+  mediana <- median(x, na.rm=TRUE)
+  MADM <- madm(x, na.rm=TRUE)
+  
+  return(x> mediana + 3*MADM | x < mediana - 3*MADM)
+}
 
 
 # Regla boxplot
+reglaboxplot <- function(x) {
+  
+  xi <- quantile(x, 0.25, na.rm = TRUE)
+  xs <- quantile(x, 0.75, na.rm = TRUE)
+  
+  # Calculo el rango intercuartílico
+  IQR <- xs - xi
+  
+  lowLim <- xi - 1.5 * IQR
+  upLim <- xs + 1.5 * IQR
+  
+  return(x < lowLim | x > upLim)
+}
 
 
 # Percentiles
+reglapercentil <- function(x) {
+  
+  # Calculo los percentiles
+  p5 <- quantile(x, 0.05, na.rm = TRUE)
+  p95 <- quantile(x, 0.95, na.rm = TRUE)
+  
+  # Identifico los valores atípicos
+  return(x < p5 | x > p95)
+}
 
 ```
 
