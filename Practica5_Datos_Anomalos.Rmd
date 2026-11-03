@@ -334,8 +334,46 @@ Representa gráficamente los datos de `Petal.Length` (distribución de puntos en
 
 Nota: usa en `geom_point` con la opción `position='jitter'` para mejorar la legibilidad del gráfico.
 
+Empiezo el ejercicio pasando los datos de los outliers a un formato tidy con la función pivot_longer. Esto me va a permitir crear la gráfica de manera mucho mas sencilla. Para ello filtro una vez mas con select para quedarme con las columnas que contienen la información de los outliers. Con el pipe le paso estas columnas a la función pivot_longer, que me junta las columnas de outliers en dos, una columna que define el método, y otra que define el valor (TRUE o FALSE). Con el names_prefix elimino el "Petal.Length\_ del nombre de cada método para que quede mejor el resultado.
+
 ```{r Solucion ejercicio 8, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
 
+datos_grafica <- dirty_iris %>%
+  select(Petal.Length, starts_with("Petal.Length_")) %>%
+  pivot_longer(
+    cols = starts_with("Petal.Length_"),
+    names_to = "Metodo",
+    values_to = "Outlier",
+    names_prefix = "Petal.Length_"
+  )
+
+help("pivot_longer")
+
+datos_grafica
+
+```
+
+Realizo el gráfico usando como color la variable Outlier. Defino los valores TRUE que son los outliers detectados como Rojos y los FALSE que son los que no se detectan como outliers como azul. Después añado los titulos y nombres correspondientes.
+
+Se observa aquí mas claramente como el método percentil no parece funcionar correctamente, ya que nos detecta como outliers valores que parecen estar claramente muy cercanos a otros valores normales. Es decir, elimina valores que estan en lo que parece una distribución correcta.
+
+```{r}
+ggplot(datos_grafica, aes(x = Metodo, y = Petal.Length, color = Outlier)) +
+  geom_point(position = "jitter", size = 2, alpha = 0.7) +
+  scale_color_manual(
+    values = c("FALSE" = "blue", "TRUE" = "red"),
+    labels = c("FALSE" = "Típico", "TRUE" = "Outlier")
+  ) +
+  labs(
+    title = "Detección de outliers en Petal.Length",
+    x = "Método de detección",
+    y = "Longitud del pétalo",
+    color = "Clasificación"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 25, hjust = 1)
+  )
 ```
 
 # Imputación de datos
