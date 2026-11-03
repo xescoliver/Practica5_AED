@@ -269,9 +269,20 @@ reglapercentil <- function(x) {
 
 Utiliza la función `mutate` y `across` para identificar los outliers en la variable `Petal.Length` con todos los métodos de detección de outliers implementados. Genera una columna nueva para cada método. Nota: podría extenderse la aplicación a todas las variables numéricas usando también `mutate`, `across` y `where`.
 
+Usando la función mutate y across calculo los valores con las funciones que he creado anteriormente. De esta manera obtengo los bools para cada valor de Petal-Length, sabiendo así si es o no un outlier para ese método. La función mutate ya me genera directamente las nuevas columnas. Almaceno en dirty_iris el resulado para almacenar las nuevas columnas calculadas.
+
+Es importante destacar que para la detección de anomalias uso el dataset dirty, es decir, sin eliminar las instancias que tienen algun valor faltante. No nos interesa usar los datos limpios porque no nos dejará la posibilidad de posteriormente imputar lso valores faltantes. Es por ello que creo que es mejor usar los datos sin la eliminación de las instancias con valores faltantes.
+
 ```{r Solucion ejercicio 6, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
 
+dirty_iris <- dirty_iris %>% mutate(across(Petal.Length, list(
+  sigma = reglasigma,
+  hampel = reglahampel,
+  boxplot = reglaboxplot,
+  percentil = reglapercentil
+)))
 
+head(dirty_iris)
 
 ```
 
