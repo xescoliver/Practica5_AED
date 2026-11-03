@@ -1,0 +1,260 @@
+---
+title: "Práctica 5. Datos Anómalos"
+subtitle: "Análisis Exploratorio de Datos, Máster en Ciencia de Datos - UV"
+author: "Francesc Oliver Catany"
+output:
+  html_document:
+    echo: yes
+    number_sections: no
+    theme: lumen
+    toc: yes
+  pdf_document:
+    toc: yes
+    toc_depth: 3
+    number_sections: no
+---
+
+```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+# CONFIGURACIÓN GENERAL
+library(knitr)
+options(width = 100)
+# Opciones generales chunks
+opts_chunk$set(echo = T, message = F, error = F, warning = F,
+               comment = NA, fig.align = 'center', dpi = 100, tidy = F,
+               cache.path = '.cache/', fig.path = './figure/')
+# options(xtable.type = 'html')
+knit_hooks$set(inline = function(x) {
+  if(is.numeric(x)) {
+    round(x, getOption('digits'))
+  } else {
+    paste(as.character(x), collapse = ', ')
+  }
+})
+# knit_hooks$set(plot = knitr:::hook_plot_html)
+knitr::opts_chunk$set(fig.width=8, fig.height=4)
+```
+
+
+```{r}
+library(pacman)
+packages = c("knitr", "ggplot2","tidyr","dplyr","readr")
+pacman::p_load(char=packages)
+
+```
+
+```{r Solucion opciones visualizacion, eval=F, include=F}
+# {r Solucion ejercicio xxx, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE} 
+# para generar nuestra versión con todas las soluciones.
+# {r Solucion ejercicio xxx, include=TRUE, echo=FALSE, eval=TRUE, results= FALSE}
+# para generar su versión sin código ni resultados numéricos pero con las gráficas.
+```
+
+
+# Introducción y objetivos
+
+El objetivo de esta práctica es comprobar si los conjuntos de datos con los que vamos a trabajar son consistentes y, por tanto, pueden ser empleados para realizar un análisis sin errores.
+Las observaciones contenidas en los datos pueden presentar diferentes tipos de inconsistencias, como valores perdidos (missing values), valores especiales y valores anómalos (outliers).
+
+Para evitar estas inconsistencias, estos datos deberán ser eliminados, corregidos o imputados. Siendo las etapas que pueden seguirse para obtener datos consistentes:
+
+  1. Detección de las inconsistencias.
+  2. Detectar el campo o campos que la generan y las dependencias entre ellos.
+  3. Corrección de errores.
+
+Vamos a trabajar con el conjunto de datos *dirty_iris*, que ya conocemos, que contiene datos perdidos, valores especiales y anomalías de carácter numérico respecto a la distribución de los datos (``dirty_iris.csv``).
+
+```{r}
+rm(list=ls())
+dirty_iris <- read_csv("data/dirty_iris.csv")
+```
+
+# Detección de inconsistencias en los datos
+
+Por lo general, no hay un convenio o una representación común para indicar un dato perdido o incluso determinados valores especiales. En los siguientes ejercicios vamos a analizar cómo detectar inconsistencias presentes en los datos.
+
+## Ejercicio 1: Inspección Visual
+
+Inspecciona visualmente los valores del conjunto de datos (`View`) y ordena de mayor a menor y de menor a mayor cada variable para descubrir las diferentes inconsistencias que presenta el conjunto `dirty_iris`. Comenta los valores que te llamen la atención.
+
+Empiezo observando los valores con View en R studio.
+
+Veo que la instancia 43 tiene un valor de sepal.length de 0. Esto es sorprendente ya que supone que no tiene sepalo. La instancia 16 tiene un valor negativo en Sepal.width, por lo que suponemos que esta incorrecto, ya que no se puede tener anchura negativa. Observamos como el caso 79 tiene una longitud de pétalo de 0, otra vez suponemos que es que no tenemos pétalo en esa flor. También observamos como la instancia 86 tiene un valor de Inf, es decir, infinito en la anchura del pétalo, esto es claramente un valor erroneo.
+
+```{r Solucion ejercicio 1, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+# Medidas con valores faltantes, longitudes negativas y cero
+
+#observo los datos
+View(dirty_iris)
+
+```
+
+## Ejercicio 2: Valores especiales
+
+Visualizar los datos puede ser muy revelador, pero en general, especialmente para conjuntos de datos grandes, realizaremos este análisis de forma automática.
+
+Los valores especiales más comunes en R son:
+
+  * NA (_not available_): missing value o dato perdido (`is.na`)
+  * NULL (_empty set_): elemento nulo de longitud 0 (`is.null`)
+  * NaN (_not a number_): indeterminación con resultado desconocido (`is.nan`)
+  * Inf (_infinite_): valor numérico de valor infinito (`is.infinite`)
+
+Nota: A parte de estas funciones, `is.numeric` comprueba si la variable es numérica;  `is.finite` comprueba la existencia de cualquier valor especial en un vector numérico pero devuelve `FALSE` para variables de texto.
+
+Reemplaza, en todas las columnas numéricas del data frame `dirty_iris`, los valores que sean especiales (usando `is.finite`), negativos, o iguales a cero, por `NA`. 
+Nota: Puedes reemplazar los valores para cada variable del dataframe usando `mutate` con la función `ifelse`.
+
+Para hacer esto usamos la función mutate para cambiar los valores. Dentro usamos across para que se aplique a todas las columnas. Usando where(is.numeric) nos quedamos solo con las columnas que usan valores numéricos. Con el ifelse comprobamos si los valores no son finitos con !is.finite() o si son menores o iguales a cero. En cualquiera de estos casos los sustituimos por NA, manteniendo los valores válidos. Eliminamos también los ceros y los negativos porque las variables numéricas representan medidas de partes de una flor y no pueden tomar esos valores.
+
+
+```{r Solucion ejercicio 2, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+# DEBEMOS ELIMINAR TAMBIEN LOS VALROES IGUALES A CERO YA QUE SE TRATA DE LONGITUDES DE PARTES DE UNA FLOR. NO PUEDEN SER O
+
+dirty_iris <- dirty_iris %>% mutate(across(where(is.numeric), ~ ifelse(!is.finite(.) | . <= 0, NA, .)))
+
+head(dirty_iris)
+
+#help(mutate)
+
+
+
+```
+
+
+## Ejercicio 3: Valores perdidos y observaciones completas
+
+  * Calcula el número y porcentaje de observaciones completas (muestras sin ningún dato perdido) empleando `complete.cases` (detecta todos los registros sin datos faltantes).
+  * Emplea después la función `na.omit` para quedarnos solo con las filas con datos completos en un nuevo data frame `clean_iris`.
+
+```{r Solucion ejercicio 3, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+
+```
+
+# Detección de outliers univariante
+
+Un outlier es una observación (o conjunto de observaciones) que no parecen consistentes con el resto de valores de esa variable. Por lo general, esas observaciones divergirán del patrón de comportamiento del resto de datos, es decir, presentarán una desviación respecto de la distribución de los datos.
+
+En esta sección, vamos a centrarnos en métodos de detección univariantes, así que, en los ejercicios, a modo de ejemplo, analizaremos solo la variable `Petal.Length`.
+
+## Ejercicio 4: Estadísticos básicos
+
+La presencia de outliers puede producir una gran influencia en caracterizaciones sencillas de los datos, como la media y la desviación típica.
+
+Empleado la función `summarise y across`, calcula la media, la desviación típica, mediana, la  _median absolute deviation from the median_ (MADM) y el _interquartile range_ (IQR) de las variables numéricas. 
+Hazlo para el data frame con observaciones completas `clean_iris` (que no tiene NA pero tiene menos observaciones) y para el data frame con datos faltantes `dirty_iris` (que presenta muchos NA pero tiene todas las observaciones).
+
+  * Ten en cuenta que no se puede realizar un análisis estadístico con datos faltantes, pero en la mayoría de los casos se puede optar por no considerar dichos valores al realizar los cálculos (parámetro `na.rm=TRUE`).
+  * Para obtener el valor MADM, escribe una función `madm(x)` que sea robusta a la presencia de valores NA. Recuerda que el MADM se calcula como $1.4826\cdot\textrm{median}(|x - \textrm{median(x)}|)$.
+  * Compara los resultados para los dos conjuntos en la variable `Petal.Length`.
+
+```{r , include = TRUE}
+
+```
+
+
+## Ejercicio 5: Métodos de detección de outliers
+
+Escribe una función que detecte los outliers de un vector $x$ para cada uno de los siguientes métodos de detección de outliers univariantes (todas las funciones tienen que ser robustas a la presencia de valores NA).
+
+  * **Regla 3 sigma** `reglasigma(x)`: Considera que los datos siguen una distribución gaussiana. Datos típicos caracterizados por la media y la dispersión por la varianza. Valores por encima de 3 desviaciones típicas se consideran outliers.
+
+  * **Identificador Hampel** `reglahampel(x)`: Utiliza estimadores robustos y no presupone que los datos siguen una distribución gaussiana. Datos típicos caracterizados por la mediana y la dispersión por la _median absolute deviation from the median_ (MADM). Valores por encima de 3 MADM se consideran outliers.
+
+  * **Regla boxplot** `reglaboxplot(x)`: A partir de los datos se calcula su diagrama de caja (boxplot) y se definen como datos típicos superiores hasta el cuartil 75%, $x_s$; datos típicos inferiores hasta el cuartil 25%, $x_i$; y la dispersión se define como el rango intercuartílico ($IQR= x_s-x_i$). Valores por encima de $x_s+1.5\cdot IQR$ o por debajo de $x_i-1.5\cdot IQR$ se consideran outliers. Usa la función `quantile` para calcular los cuartiles.
+
+  * **Percentiles** `reglapercentil(x)`: Cualquier valor que esté fuera del rango del percentil 5% y 95% se puede considerar como atípico. Usa la función `quantile` para calcular los percentiles.
+
+```{r , include = FALSE}
+# Regla 3 sigma
+
+
+# Identificador Hampel
+
+
+
+# Regla boxplot
+
+
+# Percentiles
+
+```
+
+
+## Ejercicio 6: Detección de outliers
+
+Utiliza la función `mutate` y `across` para identificar los outliers en la variable `Petal.Length` con todos los métodos de detección de outliers implementados. Genera una columna nueva para cada método. 
+Nota: podría extenderse la aplicación a todas las variables numéricas usando también `mutate`, `across` y `where`. 
+
+```{r Solucion ejercicio 6, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+
+
+
+```
+
+## Ejercicio 7: Comparativa de los métodos de detección de outliers
+
+En los métodos de detección de outliers analizados, examina los resultados comparando:
+
+  * Número de outliers detectados por método.
+  * Los valores etiquetados como outliers (ordenados de menor a mayor).
+
+```{r Solucion ejercicio 7, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+
+```
+
+## Ejercicio 8: Representación gráfica
+
+Representa gráficamente los datos de `Petal.Length` (distribución de puntos en el eje $y$) para todas las reglas de detección implementadas (repartidas en el eje $x$) mostrando los valores identificados como típicos y los identificados como outliers en diferente color. Usa la función `pivot_longer` para poder agrupar por reglas y colorear los outliers fácilmente.
+
+Nota: usa en `geom_point` con la opción `position='jitter'` para mejorar la legibilidad del gráfico.
+
+```{r Solucion ejercicio 8, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+
+```
+
+# Imputación de datos
+
+Como se ha visto, con _missing data_ nos referimos a una observación (o conjunto de observaciones) cuyo valor no es conocido. 
+
+Vamos a ver a continuación ejemplos de cómo imputar valores realistas a esas observaciones perdidas.
+
+## Ejercicio 9: Imputación de datos perdidos con estadísticos básicos
+
+La opción más sencilla es imputar con un valor estimado de los valores conocidos (por ejemplo, con la media, la mediana, o la moda).
+
+Se puede realizar una imputación generalizada (usando todos los valores de la variable) o una imputación a partir de casos similares (la estimación se realiza teniendo en cuenta otra variable):
+
+  * Imputa los missing data en `Petal.Length` empleando la media. Nota: Puedes reemplazar los valores vacios usando `mutate` con `ifelse` creando una nueva variable `Petal.Length1`.
+
+```{r Solucion ejercicio 9a, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+
+```
+
+  * Imputa los missing data en `Petal.Length` empleando en esta ocasión la media para cada tipo de `Species` (usar`group_by` y `mutate`) creando una nueva variable `Petal.Length2`.
+
+```{r Solucion ejercicio 9b, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+
+
+```
+
+## Ejercicio 10: Representación gráfica
+
+Vamos a comparar ahora los dos métodos de imputación gráficamente eliminando los outliers para una mejor visualización.
+
+  * Recalcula las reglas de identificación de outliers (Ejercicio 6) para la nueva variable `Petal.Length2`.
+  
+```{r Solucion ejercicio 10a, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+
+ 
+```
+
+  * Representa los dos tipos de imputación empleados en un gráfico de dispersión (`Petal.Length1` vs. `Petal.Length2`) eliminando los outliers identificados con la regla `reglapercentil` y poniendo en diferente color los datos originales y los imputados.
+
+```{r Solucion ejercicio 10b, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+
+
+
+```
+
+
+
