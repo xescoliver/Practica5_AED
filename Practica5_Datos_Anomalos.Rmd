@@ -293,8 +293,39 @@ En los métodos de detección de outliers analizados, examina los resultados com
 - Número de outliers detectados por método.
 - Los valores etiquetados como outliers (ordenados de menor a mayor).
 
+Para detectar el número de outliers por método uso una pipe, en el que primero filtro las columnas que he creado anteriormente, en las que he guardado los valores de los outliers con la función select. Seguidamente aplico un sapply para calcular la suma de los valores TRUE sobre cada una de las columnas seleccionadas.
+
+Como podemos observar el método que mas outliers detecta es el del percentil, encontrando 11 casos. Claramente este método es menos restrictivo que los otros 3. Es decir, es mas laxo al momento de detectar outliers y es más posible que detecte de manera erronea outliers.
+
+Esto se debe a que siempre elimina un 10% de los valores, independientemente de su distribución. Es decir, elimina el top 5% de valores más altos y bajos. Este método es mucho menos robusto que los otros, que si dependen de la distribución de los valores y su separación de la media o mediana.
+
 ```{r Solucion ejercicio 7, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
 
+num_outliers <- dirty_iris %>% select(starts_with("Petal.Length_")) %>%
+  sapply(function(x) sum(x, na.rm = TRUE))
+
+print(num_outliers)
+
+```
+
+Ahora paso a comparar los valores que se detectan como outliers en cada método. Para ello vuelvo a filtrar las columnas que necesito con select. Después recorro esas columnas, y me quedo con los valores que son true dentro de dirty_iris.
+
+Podemos observar como el método con el percentil es el único que detecta como outliers valores pequeños como 1.1 y 1.2. No creo que sean outliers reales porque al estar hablendo de un pétalo en cm no parece que sea tan poco. Parece un valor plausible así a primera vista.
+
+```{r}
+
+#Obtengo la scolumnas que son outliers
+outliers <- dirty_iris %>%select(starts_with("Petal.Length_"))
+
+for (name in colnames(outliers)) {
+  
+  print(name)
+  
+  # Selecciono los valores identificados como outliers
+  valores <- dirty_iris$Petal.Length[outliers[[name]] %in% TRUE]
+  
+  print(sort(valores))
+}
 ```
 
 ## Ejercicio 8: Representación gráfica
